@@ -9,6 +9,9 @@ import Icon from './Icon.jsx'
 // `minimizable` (workout view) adds a persistent minimize/expand control so the animation stops
 // eating the screen; the chosen size is saved to settings and carries across exercises and
 // future workouts (issue #12).
+const REMOTE_IMG = import.meta.env.VITE_IMG_BASE || 'img/'
+const REMOTE_GIF = import.meta.env.VITE_GIF_BASE || 'gif/'
+
 export default function Media({ ex, id, compact, minimizable }) {
   const [playing, setPlaying] = useState(true)
   const gifSize = useStore(s => s.S.gifSize)
@@ -16,9 +19,15 @@ export default function Media({ ex, id, compact, minimizable }) {
   if (!ex.gif) return null
   const mini = minimizable && gifSize === 'mini'
   const toggleSize = e => { e.stopPropagation(); update(s => { s.gifSize = mini ? 'full' : 'mini' }) }
+  const handleErr = e => {
+    if (!e.currentTarget.dataset.fallback) {
+      e.currentTarget.dataset.fallback = '1'
+      e.currentTarget.src = (playing ? REMOTE_GIF : REMOTE_IMG) + (playing ? ex.gif : ex.img)
+    }
+  }
   return (
     <div className={'exmedia' + (compact ? ' compact' : '') + (mini ? ' mini' : '')} id={id} onClick={() => setPlaying(p => !p)}>
-      <img decoding="async" src={playing ? gifSrc(ex) : imgSrc(ex)} alt={ex.n} />
+      <img src={playing ? gifSrc(ex) : imgSrc(ex)} alt={ex.n} onError={handleErr} />
       {minimizable && (
         <button className="giftoggle" onClick={toggleSize}>
           <Icon name={mini ? 'expand' : 'minimize'} />{mini ? t('Expand') : t('Minimize')}
@@ -35,5 +44,11 @@ export default function Media({ ex, id, compact, minimizable }) {
 
 export function Thumb({ ex }) {
   if (!ex.img) return <div className="thumb thumb-x"><Icon name="dumbbell" /></div>
-  return <img className="thumb" loading="lazy" decoding="async" src={imgSrc(ex)} alt="" />
+  const handleErr = e => {
+    if (!e.currentTarget.dataset.fallback) {
+      e.currentTarget.dataset.fallback = '1'
+      e.currentTarget.src = REMOTE_IMG + ex.img
+    }
+  }
+  return <img className="thumb" loading="lazy" decoding="async" src={imgSrc(ex)} alt="" onError={handleErr} />
 }

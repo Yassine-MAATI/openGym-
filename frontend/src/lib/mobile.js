@@ -12,6 +12,7 @@
 import { t } from './i18n.js'
 
 export const MOBILE = import.meta.env.VITE_MOBILE === '1'
+export { initLocalMedia, useMediaStatus, startMediaDownload, cancelMediaDownload, deleteLocalMedia } from './mobile-media.js'
 
 const FILE = 'opengym-state.json'
 

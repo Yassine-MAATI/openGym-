@@ -9,8 +9,8 @@ import { pushSupported, enablePush, disablePush, sendTestPush } from '../lib/pus
 import { wakeLockSupported } from '../lib/wakelock.js'
 import { t, LANGS, INSTR_LANGS } from '../lib/i18n.js'
 import { DEMO, REPO } from '../lib/demo.js'
-import { MOBILE, shareExport, syncReminder } from '../lib/mobile.js'
-import { loadStarterPlan, confirmSheet, importFromApp } from '../sheets.jsx'
+import { MOBILE, shareExport, syncReminder, useMediaStatus } from '../lib/mobile.js'
+import { loadStarterPlan, confirmSheet, importFromApp, mediaDownloadSheet } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField } from '../components/ui.jsx'
 
@@ -20,6 +20,7 @@ export default function Settings() {
   const user = useStore(s => s.user)
   const { update, replaceState, setUser, pullState, pushState, signOut, signOutAll, resetDemo } = useStore()
   const toast = useUI(s => s.toast)
+  const mediaStatus = useMediaStatus()
   const fileRef = useRef(null)
   const importRef = useRef(null)
   const wakeOK = wakeLockSupported()
@@ -180,6 +181,24 @@ export default function Settings() {
         accessory="chevron" onClick={() => importRef.current.click()} />
       <Row icon="upload" iconTint="var(--blue)" title={t('Import backup')} accessory="chevron" onClick={() => fileRef.current.click()} />
       <Row icon="download" iconTint="var(--blue)" title={t('Export backup (JSON)')} accessory="chevron" onClick={doExport} />
+      {MOBILE && (
+        <Row
+          icon="download"
+          iconTint="var(--purple)"
+          title={t('Download exercise media (offline)')}
+          subtitle={
+            mediaStatus.status === 'downloading' || mediaStatus.status === 'checking'
+              ? t('Downloading… {0}% ({1}/{2})', mediaStatus.pct, mediaStatus.completed, mediaStatus.total)
+              : mediaStatus.isLocal
+                ? t('Downloaded for offline use (~140 MB)')
+                : mediaStatus.completed > 0
+                  ? t('Partially downloaded ({0}%) · Tap to resume', mediaStatus.pct)
+                  : t('Save ~140 MB of images and GIFs to this phone')
+          }
+          accessory="chevron"
+          onClick={mediaDownloadSheet}
+        />
+      )}
       <Row icon="trash" iconTint="var(--red)" title={t('Reset everything')} danger onClick={() => confirmSheet({ title: t('Reset everything?'), message: t('Deletes your plan, workouts and body weight on this device. This cannot be undone.'), confirmText: t('Delete everything'), danger: true, onConfirm: () => { replaceState(JSON.parse(JSON.stringify(DEF)), true); nav('/home'); toast(t('All data reset')) } })} />
     </Section>
     <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={doImport} />
@@ -278,7 +297,7 @@ function PushCard({ S, update, toast }) {
 
   useEffect(() => {
     if (!supported) return
-    navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription()).then(sub => setOn(!!sub)).catch(() => {})
+    navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription()).then(sub => setOn(!!sub)).catch(() => { })
   }, [supported])
 
   const toggle = async v => {
@@ -305,7 +324,7 @@ function PushCard({ S, update, toast }) {
       title={t('Notifications')}
       footer={on && S.reminder?.on
         ? t("Only sent on days you have a routine planned and haven't logged a workout yet.") +
-          (S.reminder?.tz ? ' ' + t('Timezone: {0} (auto-detected, updates if you travel).', S.reminder.tz) : '')
+        (S.reminder?.tz ? ' ' + t('Timezone: {0} (auto-detected, updates if you travel).', S.reminder.tz) : '')
         : null}
     >
       <Row icon="bell" iconTint="var(--red)" title={t('Push notifications')} subtitle={t('Rest-timer alerts, even if openGym is closed.')}>
@@ -334,7 +353,7 @@ function RegisterInline({ close, setUser, pushState, pullState, toast }) {
   const nameRef = useRef(null)
   const [code, setCode] = useState('')
   const [inviteOnly, setInviteOnly] = useState(false)
-  useEffect(() => { api('/api/config').then(c => setInviteOnly(!!c.invite_only)).catch(() => {}) }, [])
+  useEffect(() => { api('/api/config').then(c => setInviteOnly(!!c.invite_only)).catch(() => { }) }, [])
   const go = async () => {
     const n = (nameRef.current.value || '').trim()
     if (!n) { toast(t('Enter a name')); return }

@@ -20,6 +20,7 @@ import { buildPlanBundle, parsePlan, mergePlan, printPlan } from './lib/plan-sha
 import { estimate1RM, best1RM, is1RMRecord, REP_CAP } from './lib/onerm.js'
 import { nextPrescription, applyPrescription, policyFor, defaultIncrement, POLICIES_FOR, POLICY_NAME, POLICY_DESC, MAX_BW_SETS } from './lib/progression.js'
 import { MOBILE, shareExport } from './lib/mobile.js'
+import { useMediaStatus, startMediaDownload, cancelMediaDownload, deleteLocalMedia } from './lib/mobile-media.js'
 
 const S = () => useStore.getState().S
 const update = (...a) => useStore.getState().update(...a)
@@ -967,3 +968,109 @@ function doFinishWorkout() {
   beep(snd(), 880, 0.15); beep(snd(), 1100, 0.15, 0.18); beep(snd(), 1320, 0.3, 0.36)
   ui().openSheet(close => <FinishSummary w={w} prs={prs} e1prs={e1prs} close={close} />, { kind: 'center', locked: true })
 }
+
+/* ============================ mobile offline media download ============================ */
+export function MediaDownloadSheet({ close }) {
+  const media = useMediaStatus()
+  const { isLocal, status, completed, total, pct, error, currentFile } = media
+  const isDownloading = status === 'downloading' || status === 'checking'
+
+  const doDelete = () => {
+    confirmSheet({
+      title: t('Delete downloaded media?'),
+      message: t('This removes all offline exercise images and GIFs (~140 MB). Exercise demonstrations will load over the internet again.'),
+      confirmText: t('Delete media'),
+      danger: true,
+      onConfirm: async () => {
+        await deleteLocalMedia()
+        toast(t('Downloaded media removed'))
+      }
+    })
+  }
+
+  return (
+    <div style={{ padding: '4px 0' }}>
+      <h3 style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Icon name="download" /> {t('Exercise media (offline)')}
+      </h3>
+      <div className="muted" style={{ marginBottom: 16, lineHeight: 1.5 }}>
+        {t('Download all 1,324 exercise preview images and animated GIFs (~140 MB) directly to your device. Once downloaded, all exercises can be viewed completely offline without an internet connection.')}
+      </div>
+
+      {isDownloading && (
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 14 }}>
+            <span>{status === 'checking' ? t('Checking existing files…') : t('Downloading…')}</span>
+            <span style={{ fontWeight: 600 }}>{pct}%</span>
+          </div>
+          <div style={{ height: 8, background: 'var(--surface-3)', borderRadius: 99, overflow: 'hidden', position: 'relative' }}>
+            <div style={{ height: '100%', background: 'var(--acc)', width: `${pct}%`, transition: 'width 0.2s ease', borderRadius: 99 }} />
+          </div>
+          <div className="dim small" style={{ marginTop: 6, textAlign: 'center' }}>
+            {t('{0} of {1} files downloaded', completed, total)}
+            {currentFile ? ` · ${currentFile}` : ''}
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <Button variant="danger" icon="xmark" onClick={cancelMediaDownload} style={{ width: '100%' }}>
+              {t('Cancel download')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!isDownloading && isLocal && (
+        <div style={{ marginBottom: 18 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, padding: 12, borderRadius: 10,
+            background: 'var(--surface-2)', marginBottom: 14
+          }}>
+            <Icon name="checkCircle" style={{ color: 'var(--acc)', fontSize: 22, flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 600 }}>{t('Ready for offline use')}</div>
+              <div className="dim small">{t('All exercise images and GIFs are saved on this phone.')}</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Button variant="plain" icon="reset" onClick={startMediaDownload} style={{ width: '100%' }}>
+              {t('Re-verify / Update media')}
+            </Button>
+            <Button variant="danger" icon="trash" onClick={doDelete} style={{ width: '100%' }}>
+              {t('Delete downloaded media')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!isDownloading && !isLocal && (
+        <div style={{ marginBottom: 18 }}>
+          {error && (
+            <div style={{ color: 'var(--red)', marginBottom: 12, fontSize: 14, lineHeight: 1.4 }}>
+              {error}
+            </div>
+          )}
+          {completed > 0 && (
+            <div className="dim small" style={{ marginBottom: 10 }}>
+              {t('Partial download detected: {0} of {1} files ({2}%).', completed, total, pct)}
+            </div>
+          )}
+          <Button variant="primary" icon="download" onClick={startMediaDownload} style={{ width: '100%' }}>
+            {completed > 0 ? t('Resume download ({0}%)', pct) : t('Download all media (~140 MB)')}
+          </Button>
+          <div className="dim small" style={{ textAlign: 'center', marginTop: 10 }}>
+            {t('Wi-Fi connection recommended.')}
+          </div>
+        </div>
+      )}
+
+      <div style={{ height: 4 }} />
+      <Button variant="ghost" className="dim" onClick={close} style={{ width: '100%' }}>
+        {t('Close')}
+      </Button>
+    </div>
+  )
+}
+
+export function mediaDownloadSheet() {
+  ui().openSheet(close => <MediaDownloadSheet close={close} />)
+}
+

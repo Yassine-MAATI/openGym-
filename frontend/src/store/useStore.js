@@ -3,7 +3,7 @@ import { api } from '../lib/api.js'
 import { localTZ } from '../lib/format.js'
 import { registerCustom } from '../lib/exercises.js'
 import { DEMO, DEMO_SEEDED } from '../lib/demo.js'
-import { MOBILE, nativeLoad, nativeSave, syncReminder } from '../lib/mobile.js'
+import { MOBILE, nativeLoad, nativeSave, syncReminder, initLocalMedia } from '../lib/mobile.js'
 
 const KEY = 'gym_state_v1'
 export const DEF = {
@@ -158,6 +158,7 @@ export const useStore = create((set, get) => {
           nativeSave(S)   // first run after an update from a file-less version: seed the mirror
         }
         get().setGuest(true)
+        initLocalMedia().catch(() => {})
         syncReminder(get().S)
         set({ ready: true })
         return
